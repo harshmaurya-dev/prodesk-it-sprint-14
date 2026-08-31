@@ -1,0 +1,15 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { connectDB } from './config/db.js';
+import authRoutes from './routes/authRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+dotenv.config();
+const app = express();
+const PORT = process.env.PORT || 5000;
+app.use(cors({ origin: process.env.CLIENT_URL?.split(',') || '*', methods: ['GET', 'POST'] }));
+app.use(express.json());
+app.get('/api/health', (_, res) => res.json({ status: 'ok', message: 'Sprint 14 API is running' }));
+app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+connectDB().then(() => app.listen(PORT, () => console.log(`Server running on port ${PORT}`)));
