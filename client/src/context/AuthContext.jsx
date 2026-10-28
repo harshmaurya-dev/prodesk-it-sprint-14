@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext();
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -89,10 +89,10 @@ export const AuthProvider = ({ children }) => {
     saveSession(data);
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearStoredSession();
     setUser(null);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, API }}>
