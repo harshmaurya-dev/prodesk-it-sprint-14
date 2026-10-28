@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext();
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const configuredApi = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '');
+const API = configuredApi || (import.meta.env.DEV ? 'http://localhost:5000/api' : '');
 
 const readStoredUser = () => {
   try {
@@ -17,11 +18,30 @@ const clearStoredSession = () => {
   localStorage.removeItem('user');
 };
 
+async function apiRequest(path, options = {}) {
+  if (!API) {
+    throw new Error('Backend is not configured yet. Set VITE_API_URL in the Vercel frontend project and redeploy.');
+  }
+  let response;
+  try {
+    response = await fetch(`${API}${path}`, options);
+  } catch {
+    throw new Error('Cannot reach the backend API. Check that the server is deployed and VITE_API_URL points to its /api URL.');
+  }
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('The backend returned an invalid response. Check the backend deployment and API route.');
+  }
+  if (!response.ok) throw new Error(data.message || `Request failed (${response.status}).`);
+  return data;
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(readStoredUser);
   const [loading, setLoading] = useState(true);
 
-  // Validate any saved session against the protected API before showing protected pages.
   useEffect(() => {
     let active = true;
     const validateSession = async () => {
@@ -38,11 +58,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const response = await fetch(`${API}/dashboard`, {
+        const data = await apiRequest('/dashboard', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error('Session is invalid or expired.');
-        const data = await response.json();
         if (active) {
           const verifiedUser = data.user || storedUser;
           localStorage.setItem('user', JSON.stringify(verifiedUser));
@@ -68,24 +86,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const response = await fetch(`${API}/auth/login`, {
+    const data = await apiRequest('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Login failed.');
     saveSession(data);
   };
 
   const register = async (name, email, password) => {
-    const response = await fetch(`${API}/auth/register`, {
+    const data = await apiRequest('/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password })
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Registration failed.');
     saveSession(data);
   };
 
